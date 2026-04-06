@@ -1,0 +1,307 @@
+---
+title: "Project 2: Team 3 Data Clean"
+author: "Joshua Montgomery"
+date: "2026-04-06"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+#To begin we will load the data:
+
+```{r}
+library(arrow)
+library(dplyr)
+
+
+taxi_01 <- read_parquet('/Users/josh/Desktop/SMU/Coursework/6306 DDS/Project 2/yellow_tripdata_2025-01.parquet')
+taxi_02 <- read_parquet('/Users/josh/Desktop/SMU/Coursework/6306 DDS/Project 2/yellow_tripdata_2025-02.parquet')
+taxi_03 <- read_parquet('/Users/josh/Desktop/SMU/Coursework/6306 DDS/Project 2/yellow_tripdata_2025-03.parquet')
+taxi_04 <- read_parquet('/Users/josh/Desktop/SMU/Coursework/6306 DDS/Project 2/yellow_tripdata_2025-04.parquet')
+taxi_05 <- read_parquet('/Users/josh/Desktop/SMU/Coursework/6306 DDS/Project 2/yellow_tripdata_2025-05.parquet')
+taxi_06 <- read_parquet('/Users/josh/Desktop/SMU/Coursework/6306 DDS/Project 2/yellow_tripdata_2025-06.parquet')
+taxi_07 <- read_parquet('/Users/josh/Desktop/SMU/Coursework/6306 DDS/Project 2/yellow_tripdata_2025-07.parquet')
+taxi_08 <- read_parquet('/Users/josh/Desktop/SMU/Coursework/6306 DDS/Project 2/yellow_tripdata_2025-08.parquet')
+taxi_09 <- read_parquet('/Users/josh/Desktop/SMU/Coursework/6306 DDS/Project 2/yellow_tripdata_2025-09.parquet')
+taxi_10 <- read_parquet('/Users/josh/Desktop/SMU/Coursework/6306 DDS/Project 2/yellow_tripdata_2025-10.parquet')
+taxi_11 <- read_parquet('/Users/josh/Desktop/SMU/Coursework/6306 DDS/Project 2/yellow_tripdata_2025-11.parquet')
+taxi_12 <- read_parquet('/Users/josh/Desktop/SMU/Coursework/6306 DDS/Project 2/yellow_tripdata_2025-12.parquet')
+```
+
+#Given that this is a year's worth of data, we will create quarterly dataframes.  This will help us organize our data and aide us in our analysis.  We will also breakup the date column into day, month, year, time, day of week, etc. 
+```{r}
+library(dplyr)
+
+taxi_1Q25 <- bind_rows(taxi_01, taxi_02, taxi_03)
+taxi_2Q25 <- bind_rows(taxi_04, taxi_05, taxi_06)
+taxi_3Q25 <- bind_rows(taxi_07, taxi_08, taxi_09)
+taxi_4Q25 <- bind_rows(taxi_10, taxi_11, taxi_12)
+
+taxi_1Q25 <- taxi_1Q25 %>% mutate( 
+  year = year(tpep_pickup_datetime), 
+  month = month(tpep_pickup_datetime), 
+  pickuptime = time(tpep_pickup_datetime), 
+  dropofftime = time(tpep_pickup_datetime),
+  day = day(tpep_pickup_datetime),
+  day_of_week = wday(tpep_pickup_datetime, label = TRUE) )
+
+taxi_2Q25 <- taxi_2Q25 %>% mutate( 
+  year = year(tpep_pickup_datetime), 
+  month = month(tpep_pickup_datetime), 
+  pickuptime = time(tpep_pickup_datetime), 
+  dropofftime = time(tpep_pickup_datetime),
+  day = day(tpep_pickup_datetime),
+  day_of_week = wday(tpep_pickup_datetime, label = TRUE) )
+
+taxi_3Q25 <- taxi_3Q25 %>% mutate( 
+  year = year(tpep_pickup_datetime), 
+  month = month(tpep_pickup_datetime), 
+  pickuptime = time(tpep_pickup_datetime), 
+  dropofftime = time(tpep_pickup_datetime),
+  day = day(tpep_pickup_datetime),
+  day_of_week = wday(tpep_pickup_datetime, label = TRUE) )
+
+taxi_4Q25 <- taxi_4Q25 %>% mutate( 
+  year = year(tpep_pickup_datetime), 
+  month = month(tpep_pickup_datetime), 
+  pickuptime = time(tpep_pickup_datetime), 
+  dropofftime = time(tpep_pickup_datetime),
+  day = day(tpep_pickup_datetime),
+  day_of_week = wday(tpep_pickup_datetime, label = TRUE) )
+
+```
+
+
+#Apply Date filters for respective months by qtr. as an extra safeguard
+```{r}
+taxi_1Q25 <- taxi_1Q25 %>% filter(month %in% c(1, 2, 3) & year == 2025)
+taxi_2Q25 <- taxi_2Q25 %>% filter(month %in% c(4, 5, 6) & year == 2025)
+taxi_3Q25 <- taxi_3Q25 %>% filter(month %in% c(7, 8, 9) & year == 2025)
+taxi_4Q25 <- taxi_4Q25 %>% filter(month %in% c(10, 11, 12) & year == 2025)
+
+taxi_1Q25
+taxi_2Q25
+taxi_3Q25
+taxi_4Q25 
+```
+
+
+#Identify N/As
+```{r}
+lapply(list(taxi_1Q25, taxi_2Q25, taxi_3Q25, taxi_4Q25),
+       function(df) sapply(df, function(x) sum(is.na(x))))
+```
+#In each dataframe the same variables are returing nulls:
+#passenger_count  
+#RatecodeID
+#store_and_fwd_flag
+#congestion_surcharge
+#Airport_fee
+
+
+#The null passenger count variable is particularily interesting.  While we observe a large sum of nulls in each data frame, we do not see any reported nulls in tip amount.  
+
+```{r}
+lapply(list(taxi_1Q25, taxi_2Q25, taxi_3Q25, taxi_4Q25),
+       function(df) df %>% 
+         filter(passenger_count == 0) %>% 
+         select(passenger_count, tip_amount))
+```
+#In each dataframe we find instances of 0 passneger count fares with > $0 tip amounts.  This simply isn't possible and may be bad data.  We will remove these rows from our analysis.  
+
+```{r}
+taxi_1Q25 <- taxi_1Q25  %>% filter(passenger_count > 0)
+taxi_2Q25 <- taxi_2Q25 %>% filter(passenger_count > 0)
+taxi_3Q25 <- taxi_3Q25 %>% filter(passenger_count > 0)
+taxi_4Q25 <- taxi_4Q25 %>% filter(passenger_count > 0)
+```
+
+```{r}
+lapply(list(taxi_1Q25, taxi_2Q25, taxi_3Q25, taxi_4Q25),
+       function(df) sapply(df, function(x) sum(is.na(x))))
+```
+#Removing the null rows for passenger count removed all null rows from the data.  
+
+
+#Next we will transform our date data and add additional columns.  This includes the trip duration filed that we will leverage in our EDA.  
+
+```{r}
+library(dplyr)
+library(lubridate)
+library(hms)
+
+taxi_1Q25 <- taxi_1Q25 %>%
+  mutate(
+    pickuptime  = as_hms(tpep_pickup_datetime),
+    dropofftime = as_hms(tpep_dropoff_datetime)
+  )
+
+taxi_1Q25 <- taxi_1Q25 %>%
+  mutate(
+    trip_duration_min = as.numeric(
+      difftime(tpep_dropoff_datetime,
+               tpep_pickup_datetime,
+               units = "mins")
+    )
+  )
+
+taxi_2Q25 <- taxi_2Q25 %>%
+  mutate(
+    pickuptime  = as_hms(tpep_pickup_datetime),
+    dropofftime = as_hms(tpep_dropoff_datetime)
+  )
+
+taxi_2Q25 <- taxi_2Q25 %>%
+  mutate(
+    trip_duration_min = as.numeric(
+      difftime(tpep_dropoff_datetime,
+               tpep_pickup_datetime,
+               units = "mins")
+    )
+  )
+
+
+taxi_3Q25 <- taxi_3Q25 %>%
+  mutate(
+    pickuptime  = as_hms(tpep_pickup_datetime),
+    dropofftime = as_hms(tpep_dropoff_datetime)
+  )
+
+taxi_3Q25 <- taxi_3Q25 %>%
+  mutate(
+    trip_duration_min = as.numeric(
+      difftime(tpep_dropoff_datetime,
+               tpep_pickup_datetime,
+               units = "mins")
+    )
+  )
+
+taxi_4Q25 <- taxi_4Q25 %>%
+  mutate(
+    pickuptime  = as_hms(tpep_pickup_datetime),
+    dropofftime = as_hms(tpep_dropoff_datetime)
+  )
+
+taxi_4Q25 <- taxi_4Q25 %>%
+  mutate(
+    trip_duration_min = as.numeric(
+      difftime(tpep_dropoff_datetime,
+               tpep_pickup_datetime,
+               units = "mins")
+    )
+  )
+
+taxi_1Q25
+taxi_2Q25
+taxi_3Q25
+taxi_4Q25 
+```
+
+#We will also determine tip % and add a column for EDA.  
+```{r}
+
+taxi_1Q25 <- taxi_1Q25 %>%
+  mutate(
+    tip_pct = tip_amount / fare_amount
+  )
+
+taxi_2Q25 <- taxi_2Q25 %>%
+  mutate(
+    tip_pct = tip_amount / fare_amount
+  )
+
+taxi_3Q25 <- taxi_3Q25 %>%
+  mutate(
+    tip_pct = tip_amount / fare_amount
+  )
+
+taxi_4Q25 <- taxi_4Q25 %>%
+  mutate(
+    tip_pct = tip_amount / fare_amount
+  )
+
+head(taxi_1Q25)
+head(taxi_2Q25)
+head(taxi_3Q25)
+head(taxi_4Q25)
+```
+#According to an internet search, The standard taxi tipping range in the United States and Canada is 15% to 20% of the total fare. We will add a column to bucket the tip % to below average (<15%), average (>15%>20%), and above average (> 20%)
+
+
+```{r}
+
+taxi_1Q25 <- taxi_1Q25 %>%
+  mutate(
+    tip_category = case_when(
+      tip_pct < 0.15 ~ "Below Average",
+      tip_pct >= 0.15 & tip_pct <= 0.20 ~ "Average",
+      tip_pct > 0.20 ~ "Above Average",
+      TRUE ~ NA_character_
+    )
+  )
+
+taxi_2Q25 <- taxi_2Q25 %>%
+  mutate(
+    tip_category = case_when(
+      tip_pct < 0.15 ~ "Below Average",
+      tip_pct >= 0.15 & tip_pct <= 0.20 ~ "Average",
+      tip_pct > 0.20 ~ "Above Average",
+      TRUE ~ NA_character_
+    )
+  )
+
+taxi_3Q25 <- taxi_3Q25 %>%
+  mutate(
+    tip_category = case_when(
+      tip_pct < 0.15 ~ "Below Average",
+      tip_pct >= 0.15 & tip_pct <= 0.20 ~ "Average",
+      tip_pct > 0.20 ~ "Above Average",
+      TRUE ~ NA_character_
+    )
+  )
+
+
+taxi_4Q25 <- taxi_4Q25 %>%
+  mutate(
+    tip_category = case_when(
+      tip_pct < 0.15 ~ "Below Average",
+      tip_pct >= 0.15 & tip_pct <= 0.20 ~ "Average",
+      tip_pct > 0.20 ~ "Above Average",
+      TRUE ~ NA_character_
+    )
+  )
+
+head(taxi_1Q25)
+head(taxi_2Q25)
+head(taxi_3Q25)
+head(taxi_4Q25)
+```
+#Break quarterly dataframes back into monthly data frames for further analysis.  
+
+
+```{r}
+
+taxi_01 <- taxi_1Q25 %>% filter(month == 1)
+taxi_02 <- taxi_1Q25 %>% filter(month == 2)
+taxi_03 <- taxi_1Q25 %>% filter(month == 3)
+
+
+taxi_04 <- taxi_2Q25 %>% filter(month == 4)
+taxi_05 <- taxi_2Q25 %>% filter(month == 5)
+taxi_06 <- taxi_2Q25 %>% filter(month == 6)
+
+
+taxi_07 <- taxi_3Q25 %>% filter(month == 7)
+taxi_08 <- taxi_3Q25 %>% filter(month == 8)
+taxi_09 <- taxi_3Q25 %>% filter(month == 9)
+
+
+taxi_10 <- taxi_4Q25 %>% filter(month == 10)
+taxi_11 <- taxi_4Q25 %>% filter(month == 11)
+taxi_12 <- taxi_4Q25 %>% filter(month == 12)
+```
+
+
