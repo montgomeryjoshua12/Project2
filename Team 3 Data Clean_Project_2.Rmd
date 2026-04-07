@@ -12,7 +12,9 @@ knitr::opts_chunk$set(echo = TRUE)
 
 #To begin we will load the data:
 
+
 ```{r}
+
 library(arrow)
 library(dplyr)
 
@@ -34,6 +36,8 @@ taxi_12 <- read_parquet('/Users/josh/Desktop/SMU/Coursework/6306 DDS/Project 2/y
 #Given that this is a year's worth of data, we will create quarterly dataframes.  This will help us organize our data and aide us in our analysis.  We will also breakup the date column into day, month, year, time, day of week, etc. 
 ```{r}
 library(dplyr)
+library(hms)
+library(tidyverse)
 
 taxi_1Q25 <- bind_rows(taxi_01, taxi_02, taxi_03)
 taxi_2Q25 <- bind_rows(taxi_04, taxi_05, taxi_06)
@@ -110,13 +114,18 @@ lapply(list(taxi_1Q25, taxi_2Q25, taxi_3Q25, taxi_4Q25),
          filter(passenger_count == 0) %>% 
          select(passenger_count, tip_amount))
 ```
-#In each dataframe we find instances of 0 passneger count fares with > $0 tip amounts.  This simply isn't possible and may be bad data.  We will remove these rows from our analysis.  
+#In each dataframe we find instances of 0 passneger count fares with > $0 tip amounts.  This simply isn't possible and may be bad data.  We will remove these rows from our analysis.  We also note $0 which is not possible
 
 ```{r}
 taxi_1Q25 <- taxi_1Q25  %>% filter(passenger_count > 0)
 taxi_2Q25 <- taxi_2Q25 %>% filter(passenger_count > 0)
 taxi_3Q25 <- taxi_3Q25 %>% filter(passenger_count > 0)
 taxi_4Q25 <- taxi_4Q25 %>% filter(passenger_count > 0)
+
+taxi_1Q25 <- taxi_1Q25  %>% filter(tip_amount > 0)
+taxi_2Q25 <- taxi_2Q25 %>% filter(tip_amount > 0)
+taxi_3Q25 <- taxi_3Q25 %>% filter(tip_amount > 0)
+taxi_4Q25 <- taxi_4Q25 %>% filter(tip_amount > 0)
 ```
 
 ```{r}
@@ -279,29 +288,147 @@ head(taxi_2Q25)
 head(taxi_3Q25)
 head(taxi_4Q25)
 ```
-#Break quarterly dataframes back into monthly data frames for further analysis.  
+
+
+#We want to take a look at the distirbution of tip amount across all quarters, as well as summary stats.  
 
 
 ```{r}
+taxi_1Q25 %>%
+  summarize(
+    count = n(),
+    mean_tip = mean(tip_amount, na.rm = TRUE),
+    median_tip = median(tip_amount, na.rm = TRUE),
+    min_tip = min(tip_amount, na.rm = TRUE),
+    max_tip = max(tip_amount, na.rm = TRUE),
+    sd_tip = sd(tip_amount, na.rm = TRUE)
+  )
 
-taxi_01 <- taxi_1Q25 %>% filter(month == 1)
-taxi_02 <- taxi_1Q25 %>% filter(month == 2)
-taxi_03 <- taxi_1Q25 %>% filter(month == 3)
+taxi_2Q25 %>%
+  summarize(
+    count = n(),
+    mean_tip = mean(tip_amount, na.rm = TRUE),
+    median_tip = median(tip_amount, na.rm = TRUE),
+    min_tip = min(tip_amount, na.rm = TRUE),
+    max_tip = max(tip_amount, na.rm = TRUE),
+    sd_tip = sd(tip_amount, na.rm = TRUE)
+  )
 
+taxi_3Q25 %>%
+  summarize(
+    count = n(),
+    mean_tip = mean(tip_amount, na.rm = TRUE),
+    median_tip = median(tip_amount, na.rm = TRUE),
+    min_tip = min(tip_amount, na.rm = TRUE),
+    max_tip = max(tip_amount, na.rm = TRUE),
+    sd_tip = sd(tip_amount, na.rm = TRUE)
+  )
 
-taxi_04 <- taxi_2Q25 %>% filter(month == 4)
-taxi_05 <- taxi_2Q25 %>% filter(month == 5)
-taxi_06 <- taxi_2Q25 %>% filter(month == 6)
+taxi_4Q25 %>%
+  summarize(
+    count = n(),
+    mean_tip = mean(tip_amount, na.rm = TRUE),
+    median_tip = median(tip_amount, na.rm = TRUE),
+    min_tip = min(tip_amount, na.rm = TRUE),
+    max_tip = max(tip_amount, na.rm = TRUE),
+    sd_tip = sd(tip_amount, na.rm = TRUE)
+  )
 
-
-taxi_07 <- taxi_3Q25 %>% filter(month == 7)
-taxi_08 <- taxi_3Q25 %>% filter(month == 8)
-taxi_09 <- taxi_3Q25 %>% filter(month == 9)
-
-
-taxi_10 <- taxi_4Q25 %>% filter(month == 10)
-taxi_11 <- taxi_4Q25 %>% filter(month == 11)
-taxi_12 <- taxi_4Q25 %>% filter(month == 12)
 ```
+##We note a large range in tip amounts for all quarters.  We also note increasing median tip amounts for Q's 1-4 and some hundred dollar outliers.  
+
+```{r}
+taxi_1Q25 %>%
+  ggplot(aes(x = tip_amount)) +
+  geom_density(fill = "blue", alpha = .4) +
+  ggtitle("Density Plot of Tip Amount 1Q25")
+
+taxi_2Q25 %>%
+  filter(tip_amount >= 0) %>%
+  ggplot(aes(x = tip_amount)) +
+  geom_density(fill = "red", alpha = .4) +
+  ggtitle("Density Plot of Tip Amount 2Q25")
+
+taxi_3Q25 %>%
+  filter(tip_amount >= 0) %>%
+  ggplot(aes(x = tip_amount)) +
+  geom_density(fill = "yellow", alpha = .4) +
+  ggtitle("Density Plot of Tip Amount 3Q25")
+
+taxi_4Q25 %>%
+  filter(tip_amount >= 0) %>%
+  ggplot(aes(x = tip_amount)) +
+  geom_density(fill = "green", alpha = .4) +
+  ggtitle("Density Plot of Tip Amount 4Q25")
+```
+#All plots are right skewed.  We have already removed zeros and negative tip amounts.  We will log transform
+
+```{r}
+taxi_1Q25 <- taxi_1Q25 %>%
+  mutate(log_tip_amount = log(tip_amount))
+
+taxi_2Q25 <- taxi_2Q25 %>%
+  mutate(log_tip_amount = log(tip_amount))
+
+taxi_3Q25 <- taxi_3Q25 %>%
+  mutate(log_tip_amount = log(tip_amount))
+
+taxi_4Q25 <- taxi_4Q25 %>%
+  mutate(log_tip_amount = log(tip_amount))
+
+
+
+
+```
+```{r}
+taxi_1Q25 %>%
+  ggplot(aes(x = log_tip_amount)) +
+  geom_histogram() +
+  ggtitle("Histogram of Log Tip Amount 1Q25")
+
+
+taxi_2Q25 %>%
+  ggplot(aes(x = log_tip_amount)) +
+  geom_histogram() +
+  ggtitle("Histogram of Log Tip Amount 2Q25")
+
+
+taxi_3Q25 %>%
+  ggplot(aes(x = log_tip_amount)) +
+  geom_histogram() +
+  ggtitle("Histogram of Log Tip Amount 1Q25")
+
+
+taxi_4Q25 %>%
+  ggplot(aes(x = log_tip_amount)) +
+  geom_histogram() +
+  ggtitle("Histogram of Log Tip Amount 1Q25")
+```
+#Break cleaned quarterly dataframes back into monthly data frames for further analysis & to save memory.  
+
+
+```{r}
+head(taxi_1Q25)
+
+```
+
+
+```{r}
+write_parquet(taxi_1Q25, "/Users/josh/Desktop/SMU/Coursework/6306 DDS/Project 2/Cleaned Data/taxi_1Q25_cleaned.parquet")
+write_parquet(taxi_2Q25, "/Users/josh/Desktop/SMU/Coursework/6306 DDS/Project 2/Cleaned Data/taxi_2Q25.parquet_cleaned")
+write_parquet(taxi_3Q25, "/Users/josh/Desktop/SMU/Coursework/6306 DDS/Project 2/Cleaned Data/taxi_3Q25.parquet_cleaned")
+write_parquet(taxi_4Q25, "/Users/josh/Desktop/SMU/Coursework/6306 DDS/Project 2/Cleaned Data/taxi_4Q25.parquet_cleaned")
+
+
+```
+
+
+
+
+
+
+
+
+
 
 
