@@ -404,14 +404,8 @@ taxi_4Q25 %>%
   geom_histogram() +
   ggtitle("Histogram of Log Tip Amount 1Q25")
 ```
-#Break cleaned quarterly dataframes back into monthly data frames for further analysis & to save memory.  
 
-
-```{r}
-head(taxi_1Q25)
-
-```
-
+#Write cleaned files to folder for later use
 
 ```{r}
 write_parquet(taxi_1Q25, "/Users/josh/Desktop/SMU/Coursework/6306 DDS/Project 2/Cleaned Data/taxi_1Q25_cleaned.parquet")
