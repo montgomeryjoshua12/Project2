@@ -9,6 +9,11 @@ output: html_document
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
+```{r}
+rm(list = ls())
+
+```
+
 
 #To begin we will load the data:
 
@@ -106,7 +111,7 @@ lapply(list(taxi_1Q25, taxi_2Q25, taxi_3Q25, taxi_4Q25),
 #Airport_fee
 
 
-#The null passenger count variable is particularily interesting.  While we observe a large sum of nulls in each data frame, we do not see any reported nulls in tip amount.  
+#The null passenger count variable is particularily interesting.  
 
 ```{r}
 lapply(list(taxi_1Q25, taxi_2Q25, taxi_3Q25, taxi_4Q25),
@@ -114,7 +119,7 @@ lapply(list(taxi_1Q25, taxi_2Q25, taxi_3Q25, taxi_4Q25),
          filter(passenger_count == 0) %>% 
          select(passenger_count, tip_amount))
 ```
-#In each dataframe we find instances of 0 passneger count fares with > $0 tip amounts.  This simply isn't possible and may be bad data.  We will remove these rows from our analysis.  We also note $0 which is not possible
+#In each dataframe we find instances of 0 passneger count fares with > $0 tip amounts.  This simply isn't possible and may be bad data.  We will remove these rows from our analysis.
 
 ```{r}
 taxi_1Q25 <- taxi_1Q25  %>% filter(passenger_count > 0)
@@ -214,32 +219,31 @@ taxi_4Q25
 
 taxi_1Q25 <- taxi_1Q25 %>%
   mutate(
-    tip_pct = tip_amount / fare_amount
+    tip_pct = ifelse(fare_amount == 0, 0, tip_amount / fare_amount)
   )
 
 taxi_2Q25 <- taxi_2Q25 %>%
   mutate(
-    tip_pct = tip_amount / fare_amount
+    tip_pct = ifelse(fare_amount == 0, 0, tip_amount / fare_amount)
   )
 
 taxi_3Q25 <- taxi_3Q25 %>%
   mutate(
-    tip_pct = tip_amount / fare_amount
+    tip_pct = ifelse(fare_amount == 0, 0, tip_amount / fare_amount)
   )
 
 taxi_4Q25 <- taxi_4Q25 %>%
   mutate(
-    tip_pct = tip_amount / fare_amount
+    tip_pct = ifelse(fare_amount == 0, 0, tip_amount / fare_amount)
   )
+
 
 head(taxi_1Q25)
 head(taxi_2Q25)
 head(taxi_3Q25)
 head(taxi_4Q25)
 ```
-#According to an internet search, The standard taxi tipping range in the United States and Canada is 15% to 20% of the total fare. We will add a column to bucket the tip % to below average (<15%), average (>15%>20%), and above average (> 20%)
-
-
+#According to an internet search, The standard taxi tipping range in the United States and Canada is 15% to 20% of the total fare. We will add a column to bucket the tip % to below average (<15%), average (>15%>20%), and above average (> 20%).  We will also be careful to not include instances where either side of the equation is zero (I.e. $0 Tip / $5 Total Fare or $5 / $0 Total Fare), as this will result in an NA in the variable field.  In this case, we will bucket those
 ```{r}
 
 taxi_1Q25 <- taxi_1Q25 %>%
@@ -248,7 +252,7 @@ taxi_1Q25 <- taxi_1Q25 %>%
       tip_pct < 0.15 ~ "Below Average",
       tip_pct >= 0.15 & tip_pct <= 0.20 ~ "Average",
       tip_pct > 0.20 ~ "Above Average",
-      TRUE ~ NA_character_
+      TRUE ~ "No Tip or No Fare"
     )
   )
 
@@ -258,7 +262,7 @@ taxi_2Q25 <- taxi_2Q25 %>%
       tip_pct < 0.15 ~ "Below Average",
       tip_pct >= 0.15 & tip_pct <= 0.20 ~ "Average",
       tip_pct > 0.20 ~ "Above Average",
-      TRUE ~ NA_character_
+      TRUE ~ "No Tip or No Fare"
     )
   )
 
@@ -268,7 +272,7 @@ taxi_3Q25 <- taxi_3Q25 %>%
       tip_pct < 0.15 ~ "Below Average",
       tip_pct >= 0.15 & tip_pct <= 0.20 ~ "Average",
       tip_pct > 0.20 ~ "Above Average",
-      TRUE ~ NA_character_
+      TRUE ~ "No Tip or No Fare"
     )
   )
 
@@ -279,7 +283,7 @@ taxi_4Q25 <- taxi_4Q25 %>%
       tip_pct < 0.15 ~ "Below Average",
       tip_pct >= 0.15 & tip_pct <= 0.20 ~ "Average",
       tip_pct > 0.20 ~ "Above Average",
-      TRUE ~ NA_character_
+      TRUE ~ "No Tip or No Fare"
     )
   )
 
@@ -287,6 +291,107 @@ head(taxi_1Q25)
 head(taxi_2Q25)
 head(taxi_3Q25)
 head(taxi_4Q25)
+```
+```{r}
+taxi_1Q25 <- taxi_1Q25 %>% mutate(MTA_related_fee = mta_tax + cbd_congestion_fee)
+taxi_2Q25 <- taxi_2Q25 %>% mutate(MTA_related_fee = mta_tax + cbd_congestion_fee)
+taxi_3Q25 <- taxi_3Q25 %>% mutate(MTA_related_fee = mta_tax + cbd_congestion_fee)
+taxi_4Q25 <- taxi_4Q25 %>% mutate(MTA_related_fee = mta_tax + cbd_congestion_fee)
+
+```
+
+
+
+
+#We will now take a look at the ranges of the other variables
+
+
+```{r}
+sapply(taxi_1Q25[, c("passenger_count",
+                            "trip_distance",
+                            "fare_amount",
+                            "extra",
+                            "mta_tax",
+                            "tip_amount",
+                            "tolls_amount",
+                            "improvement_surcharge",
+                            "total_amount",
+                            "congestion_surcharge",
+                            "Airport_fee",
+                            "cbd_congestion_fee",
+                            "year",
+                            "month",
+                            "day",
+                            "trip_duration_min",
+                            "tip_pct",
+                            "log_tip_amount",
+                            "MTA_related_fee")],
+       function(x) range(x, na.rm = TRUE))
+
+
+
+sapply(taxi_2Q25[, c("passenger_count",
+                            "trip_distance",
+                            "fare_amount",
+                            "extra",
+                            "mta_tax",
+                            "tip_amount",
+                            "tolls_amount",
+                            "improvement_surcharge",
+                            "total_amount",
+                            "congestion_surcharge",
+                            "Airport_fee",
+                            "cbd_congestion_fee",
+                            "year",
+                            "month",
+                            "day",
+                            "trip_duration_min",
+                            "tip_pct",
+                            "log_tip_amount",
+                            "MTA_related_fee")],
+       function(x) range(x, na.rm = TRUE))
+
+sapply(taxi_3Q25[, c("passenger_count",
+                            "trip_distance",
+                            "fare_amount",
+                            "extra",
+                            "mta_tax",
+                            "tip_amount",
+                            "tolls_amount",
+                            "improvement_surcharge",
+                            "total_amount",
+                            "congestion_surcharge",
+                            "Airport_fee",
+                            "cbd_congestion_fee",
+                            "year",
+                            "month",
+                            "day",
+                            "trip_duration_min",
+                            "tip_pct",
+                            "log_tip_amount",
+                            "MTA_related_fee")],
+       function(x) range(x, na.rm = TRUE))
+
+sapply(taxi_4Q25[, c("passenger_count",
+                            "trip_distance",
+                            "fare_amount",
+                            "extra",
+                            "mta_tax",
+                            "tip_amount",
+                            "tolls_amount",
+                            "improvement_surcharge",
+                            "total_amount",
+                            "congestion_surcharge",
+                            "Airport_fee",
+                            "cbd_congestion_fee",
+                            "year",
+                            "month",
+                            "day",
+                            "trip_duration_min",
+                            "tip_pct",
+                            "log_tip_amount",
+                            "MTA_related_fee")],
+       function(x) range(x, na.rm = TRUE))
 ```
 
 
@@ -376,9 +481,6 @@ taxi_3Q25 <- taxi_3Q25 %>%
 taxi_4Q25 <- taxi_4Q25 %>%
   mutate(log_tip_amount = log(tip_amount))
 
-
-
-
 ```
 ```{r}
 taxi_1Q25 %>%
@@ -404,9 +506,167 @@ taxi_4Q25 %>%
   geom_histogram() +
   ggtitle("Histogram of Log Tip Amount 1Q25")
 ```
+#A look at the ranges of all continous variables reveals negative values across a numer of different variables.  This is not consistent with normal operating behavior.  It is entirely possible that these negative values are the result of accounting reversals, adjustments or ERM issues.  They do not aide us in our analysis.  We will filter out continuous values >=0
 
-#Write cleaned files to folder for later use
 
+```{r}
+taxi_1Q25 <- taxi_1Q25 %>%
+  filter(fare_amount >= 0) %>%
+  filter(tip_amount >= 0) %>%
+  filter(total_amount >= 0) %>%
+  filter(tolls_amount >= 0) %>%
+  filter(extra >= 0) %>%
+  filter(Airport_fee >= 0) %>%
+  filter(mta_tax >= 0) %>%
+  filter(improvement_surcharge >= 0) %>%
+  filter(trip_duration_min >= 0) %>%
+  filter(cbd_congestion_fee >= 0) %>%
+  filter(congestion_surcharge >= 0)
+
+
+taxi_2Q25 <- taxi_2Q25 %>%
+  filter(fare_amount >= 0) %>%
+  filter(tip_amount >= 0) %>%
+  filter(total_amount >= 0) %>%
+  filter(tolls_amount >= 0) %>%
+  filter(extra >= 0) %>%
+  filter(Airport_fee >= 0) %>%
+  filter(mta_tax >= 0) %>%
+  filter(trip_duration_min >= 0) %>%
+  filter(improvement_surcharge >= 0) %>%
+  filter(cbd_congestion_fee >= 0) %>%
+  filter(congestion_surcharge >= 0)
+
+
+
+taxi_3Q25 <- taxi_3Q25 %>%
+  filter(fare_amount >= 0) %>%
+  filter(tip_amount >= 0) %>%
+  filter(total_amount >= 0) %>%
+  filter(tolls_amount >= 0) %>%
+  filter(extra >= 0) %>%
+  filter(Airport_fee >= 0) %>%
+  filter(mta_tax >= 0) %>%
+  filter(trip_duration_min >= 0) %>%
+  filter(improvement_surcharge >= 0) %>%
+  filter(cbd_congestion_fee >= 0) %>%
+  filter(congestion_surcharge >= 0)
+
+
+taxi_4Q25 <- taxi_4Q25 %>%
+  filter(fare_amount >= 0) %>%
+  filter(tip_amount >= 0) %>%
+  filter(total_amount >= 0) %>%
+  filter(tolls_amount >= 0) %>%
+  filter(extra >= 0) %>%
+  filter(Airport_fee >= 0) %>%
+  filter(trip_duration_min >= 0) %>%
+  filter(mta_tax >= 0) %>%
+  filter(improvement_surcharge >= 0) %>%
+  filter(cbd_congestion_fee >= 0) %>%
+  filter(congestion_surcharge >= 0)
+```
+
+
+```{r}
+sapply(taxi_1Q25[, c("passenger_count",
+                            "trip_distance",
+                            "fare_amount",
+                            "extra",
+                            "mta_tax",
+                            "tip_amount",
+                            "tolls_amount",
+                            "improvement_surcharge",
+                            "total_amount",
+                            "congestion_surcharge",
+                            "Airport_fee",
+                            "cbd_congestion_fee",
+                            "year",
+                            "month",
+                            "day",
+                            "trip_duration_min",
+                            "tip_pct",
+                            "log_tip_amount")],
+       function(x) range(x, na.rm = TRUE))
+```
+```{r}
+
+
+
+sapply(taxi_2Q25[, c("passenger_count",
+                            "trip_distance",
+                            "fare_amount",
+                            "extra",
+                            "mta_tax",
+                            "tip_amount",
+                            "tolls_amount",
+                            "improvement_surcharge",
+                            "total_amount",
+                            "congestion_surcharge",
+                            "Airport_fee",
+                            "cbd_congestion_fee",
+                            "year",
+                            "month",
+                            "day",
+                            "trip_duration_min",
+                            "tip_pct",
+                            "log_tip_amount")],
+       function(x) range(x, na.rm = TRUE))
+
+```
+
+```{r}
+
+
+
+sapply(taxi_3Q25[, c("passenger_count",
+                            "trip_distance",
+                            "fare_amount",
+                            "extra",
+                            "mta_tax",
+                            "tip_amount",
+                            "tolls_amount",
+                            "improvement_surcharge",
+                            "total_amount",
+                            "congestion_surcharge",
+                            "Airport_fee",
+                            "cbd_congestion_fee",
+                            "year",
+                            "month",
+                            "day",
+                            "trip_duration_min",
+                            "tip_pct",
+                            "log_tip_amount")],
+       function(x) range(x, na.rm = TRUE))
+
+```
+```{r}
+
+
+
+sapply(taxi_4Q25[, c("passenger_count",
+                            "trip_distance",
+                            "fare_amount",
+                            "extra",
+                            "mta_tax",
+                            "tip_amount",
+                            "tolls_amount",
+                            "improvement_surcharge",
+                            "total_amount",
+                            "congestion_surcharge",
+                            "Airport_fee",
+                            "cbd_congestion_fee",
+                            "year",
+                            "month",
+                            "day",
+                            "trip_duration_min",
+                            "tip_pct",
+                            "log_tip_amount")],
+       function(x) range(x, na.rm = TRUE))
+
+```
+
+#Write files for EDA to save memory.  
 ```{r}
 write_parquet(taxi_1Q25, "/Users/josh/Desktop/SMU/Coursework/6306 DDS/Project 2/Cleaned Data/taxi_1Q25_cleaned.parquet")
 write_parquet(taxi_2Q25, "/Users/josh/Desktop/SMU/Coursework/6306 DDS/Project 2/Cleaned Data/taxi_2Q25.parquet_cleaned")
